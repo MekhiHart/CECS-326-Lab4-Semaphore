@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <semaphore.h>
 //using namespace std;
 
 struct CLASS { // struct shared memory implementation
@@ -37,22 +38,41 @@ int main(int argc, char** argv) {
 	struct CLASS  *shm_base; // base address of base memory
 	//struct CLASS *shm_ptr; // moveable ptr
 
+	const char *semName = "/SEM";
+
+
 	printf("Master begins execution\n");
 	printf("This is %d\n", getpid());
 	printf("Num children: %d. shm name: %s\n",num_children,name);
 	shm_fd = shm_open(name,O_CREAT | O_RDWR,0666); // creates a shared memory object and returns an int file descriptor
 
 	if (shm_fd == -1){ // Creating shared memory fails
-		printf("Shared memory failed\n");
+		printf("ERROR from Master: Shared memory failed; shm_open() failed\n");
 		exit(1);
 	}
 	ftruncate(shm_fd, SIZE); // configures size of the shared memory object
 	shm_base = (struct CLASS *)  mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd,0); // associates memory segment into return pointer
 	if (shm_base == MAP_FAILED){
-		printf("Map failed");
+		printf("ERROR from Master: Map failed; mmap() failed\n");
 		exit(1);
 	}
+
+
 	shm_base->index = 0;
+
+    	sem_t *mutex_sem = sem_open( semName, O_CREAT, 0666, 1); // Creates a semaphore intialized to 1
+    	if (mutex_sem == SEM_FAILED) {
+        	printf("ERROR from Master: sem_open failed(): %s\n", strerror(errno));
+        	exit(1);
+        }
+
+
+	if (sem_unlink(semName) == -1) { //Unlinks
+        	printf("observer: sem_unlink() failed: %s\n", strerror(errno));
+        	exit(1);
+	}
+
+
 	for (int i=0; i < num_children; i++){ //creates multiple child processes depending on childNumber
 
 		cpid = fork(); // creates child process
@@ -68,14 +88,24 @@ int main(int argc, char** argv) {
 	printf("Contents of shared memory segment filled by child processes:\n");
 	display(shm_base,num_children);
 
+//    	if (sem_unlink(semName) == -1) { //Unlinks
+//        	printf("ERROR from Master: sem_unlink() failed: %s\n", strerror(errno));
+//        	exit(1);
+//    	}
+
+    	if (sem_close(mutex_sem) == -1) { // Deallocated semaphore
+        	printf("ERROR from Master: sem_close failed: %s\n", strerror(errno));
+        	exit(1);
+    	}
 	// Removes shared memory
+
 	if (munmap(shm_base, SIZE) == -1) { // removes mapped memory segment
- 		printf("prod: Unmap failed: %s\n", strerror(errno));
+ 		printf("ERROR from Master: Unmap failed; munmap() failed: %s\n", strerror(errno));
  		exit(1);
 	}
 
 	if (close(shm_fd) == -1) { // closes shared memory segment
- 		printf("prod: Close failed: %s\n", strerror(errno));
+ 		printf("ERROR from Master: Close failed; close() failed: %s\n", strerror(errno));
 		exit(1); // terminates program
 	 }
 
