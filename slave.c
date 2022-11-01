@@ -78,17 +78,17 @@ int main(int argc, char **argv){
         	exit(1);
     	}
 
-	if (sem_unlink(semName) == -1) { // Unlinks 
-        	printf("ERROR from Slave %d: sem_unlink() failed: %s\n",childNum, strerror(errno));
-	       	exit(1);
-    	}
+//	if (sem_unlink(semName) == -1) { // Unlinks 
+  //      	printf("ERROR from Slave %d: sem_unlink() failed: %s\n",childNum, strerror(errno));
+//	       	exit(1);
+//    	}
 
 /* done with semaphore, close it & free up resources 
    allocated to it */
-    	if (sem_close(mutex_sem) == -1) {
-	       	printf("ERROR from Slave %d: sem_close() failed: %s\n",childNum, strerror(errno));
-        	exit(1);
-	}
+//    	if (sem_close(mutex_sem) == -1) {
+//	       	printf("ERROR from Slave %d: sem_close() failed: %s\n",childNum, strerror(errno));
+//        	exit(1);
+//	}
 
 	// removes shared memory segment
 	if (munmap(shm_base, SIZE) == -1) { // removes memory mapping 
